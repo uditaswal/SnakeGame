@@ -1,563 +1,490 @@
+const gameAudio = new Audio("audio/gameAudio.mp3");
+const pointAudio = new Audio("audio/ding.mp3");
+const crashAudio = new Audio("audio/Lost_a _Life.mp3");
+const gameOverAudio = new Audio("audio/GameOver.mp3");
+const sounds = [gameAudio, pointAudio, crashAudio, gameOverAudio];
 
-// audios
-let gameAudio = new Audio("audio/gameAudio.mp3");
-let pointAudio = new Audio("audio/ding.mp3");
-let crashAudio = new Audio("audio/Lost_a _Life.mp3");
-let gameOverAudio = new Audio("audio/GameOver.mp3");
-const isMuted = localStorage.getItem("isMuted") === "true";
+gameAudio.loop = true;
 
-function playAudio(audioName) {
+const page = document.body.dataset.page;
+const imgContainer = document.getElementById("imgContainer");
+const isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
+const initialSnakeSpeed = isTouchDevice ? 42 : 34;
+const minimumSnakeSpeed = isTouchDevice ? 28 : 20;
+const speedIncreaseStep = 1;
+const step = 5;
 
-  if (audioName.paused) {
-    audioName.play().then(() => {
-      // Playback started successfully
-    })
-      .catch((error) => {
-        console.error("Error playing game audio:", error);
-      });
-  }
-}
-
-// Function to pause game audio
-function pauseAudio(audioName) {
-  if (!audioName.paused) {
-    audioName.pause();
-  }}
-
-// Function to toggle mute state
-function toggleMute() {
-
-  // Toggle the mute state
-  const newMuteState = localStorage.getItem("isMuted") !== "true";
-
-  localStorage.setItem("isMuted", newMuteState);
-
-  // Call the mute function to apply the changes
-  muteSounds(newMuteState);
-
-  // Update the mute button text
-  updateMuteButtonImg(newMuteState);
-}
-
-// Function to mute or unmute all sounds
-function muteSounds(isMuted) {
-  if (isMuted) {
-    gameAudio.muted = true;
-    gameOverAudio.muted = true;
-    pointAudio.muted = true;
-    crashAudio.muted = true;
-  } else {
-    gameAudio.muted = false;
-    gameOverAudio.muted = false;
-    pointAudio.muted = false;
-    crashAudio.muted = false;
-  }
-}
-
-// Function to update the mute button text
-function updateMuteButtonImg(isMuted) {
-  const soundImg = document.getElementById("soundImg");
-  if (!soundImg) {
-    return;
-  }
-
-  if (isMuted) {
-    soundImg.src = "img/mute-button.png";
-  } else {
-    soundImg.src = "img/soundon-button.png";
-  }
-}
-
-//game Logic
-// initilizing variables
-let imgContainer = document.getElementById("imgContainer");
-let ball;
-const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-const isSmallDisplay = window.innerWidth <= 768;
-const isMobile = isMobileDevice || isSmallDisplay;
-const isPortraitMobile = isMobile && window.innerHeight >= window.innerWidth;
-const initialStep = 5;
-const initialSnakeSpeed = isMobile ? (isPortraitMobile ? 44 : 62) : 15;
-const minSnakeSpeed = isMobile ? (isPortraitMobile ? 32 : 48) : 15;
-const speedIncreaseStep = isMobile ? 2 : 1;
-let step = initialStep;
+let ball = null;
+let headList = [];
+let score = readNumber("score");
+let duration = readNumber("duration");
+let headListLength = readNumber("headListLength", 1);
+let direction = localStorage.getItem("direction") || "right";
 let snakeSpeed = initialSnakeSpeed;
-let score = 0;
-let direction;
 let gameInterval;
 let timerInterval;
+let redirectTimer;
 let isGameRunning = false;
-let headList = []; // Array to store all the head for createHead()
-let headListLength = parseInt(localStorage.getItem("headListLength")) || 1; // set the length of snake
-let ballLocationX;
-let ballLocationY;
-let highScore = 0;
+let touchStartX = 0;
+let touchStartY = 0;
+
+function readNumber(key, fallback = 0) {
+  const value = Number.parseInt(localStorage.getItem(key), 10);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function currentMuteState() {
+  return localStorage.getItem("isMuted") === "true";
+}
+
+function playAudio(audio) {
+  if (currentMuteState()) return;
+  const playPromise = audio.play();
+  if (playPromise) {
+    playPromise.catch(() => {
+      // Browsers may block playback until the first user interaction.
+    });
+  }
+}
+
+function pauseAudio(audio, rewind = false) {
+  audio.pause();
+  if (rewind) audio.currentTime = 0;
+}
+
+function muteSounds(isMuted) {
+  sounds.forEach((sound) => {
+    sound.muted = isMuted;
+  });
+}
+
+function updateMuteButtonImg(isMuted) {
+  const soundImg = document.getElementById("soundImg");
+  const soundToggle = document.getElementById("soundToggle");
+
+  if (soundImg) {
+    soundImg.src = isMuted ? "img/mute-button.png" : "img/soundon-button.png";
+  }
+  if (soundToggle) {
+    soundToggle.setAttribute("aria-pressed", String(isMuted));
+    soundToggle.setAttribute("aria-label", isMuted ? "Turn sound on" : "Mute sound");
+  }
+}
+
+function toggleMute() {
+  const newMuteState = !currentMuteState();
+  localStorage.setItem("isMuted", String(newMuteState));
+  muteSounds(newMuteState);
+  updateMuteButtonImg(newMuteState);
+
+  if (!newMuteState && isGameRunning) playAudio(gameAudio);
+}
+
+function formatDuration(totalSeconds) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const shortTime = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  return hours > 0 ? `${String(hours).padStart(2, "0")}:${shortTime}` : shortTime;
+}
+
+function renderStats() {
+  const scoreElement = document.getElementById("scorebtn");
+  const timerElement = document.getElementById("timer");
+  const highScoreElement = document.getElementById("highScorebtn");
+  const heroHighScore = document.getElementById("heroHighScore");
+  const highScore = readNumber("highScore");
+
+  if (scoreElement) scoreElement.textContent = String(score);
+  if (timerElement) timerElement.textContent = formatDuration(duration);
+  if (highScoreElement) highScoreElement.textContent = String(highScore);
+  if (heroHighScore) heroHighScore.textContent = String(highScore).padStart(2, "0");
+}
+
+function updateTimer() {
+  if (!isGameRunning) return;
+  duration += 1;
+  localStorage.setItem("duration", String(duration));
+  renderStats();
+}
+
+function setHighScore() {
+  const highScore = readNumber("highScore");
+  if (score > highScore) localStorage.setItem("highScore", String(score));
+  renderStats();
+}
 
 function createSnakeSegment(top, left) {
   const segment = document.createElement("div");
-  segment.classList.add("snake-segment");
+  segment.className = "snake-segment";
   segment.style.top = `${top}px`;
   segment.style.left = `${left}px`;
-  segment.style.height = "6vh";
-  segment.style.width = "6vh";
-  segment.style.zIndex = 1;
   segment.style.position = "absolute";
   imgContainer.appendChild(segment);
   return segment;
 }
 
 function refreshSnakeClasses() {
-  headList.forEach((head, index) => {
-    head.classList.add("snake-segment");
-    head.classList.toggle("snake-head", index === 0);
-    head.classList.toggle("snake-body", index !== 0);
-    head.style.animationDelay = `${index * 0.08}s`;
+  headList.forEach((segment, index) => {
+    segment.classList.toggle("snake-head", index === 0);
+    segment.classList.toggle("snake-body", index !== 0);
   });
 }
 
+function getStoredSnakePositions() {
+  try {
+    const positions = JSON.parse(localStorage.getItem("snakePositions") || "[]");
+    return Array.isArray(positions) ? positions : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSnakePositions() {
+  const positions = headList.map((segment) => ({
+    top: Number.parseInt(segment.style.top, 10) || 0,
+    left: Number.parseInt(segment.style.left, 10) || 0,
+  }));
+  localStorage.setItem("snakePositions", JSON.stringify(positions));
+}
+
+function createHead() {
+  headList.forEach((segment) => segment.remove());
+  headList = [];
+
+  const storedPositions = getStoredSnakePositions();
+  for (let index = 0; index < headListLength; index += 1) {
+    const stored = storedPositions[index];
+    const top = stored?.top ?? 20;
+    const left = stored?.left ?? Math.max(20 - index * step, 0);
+    headList.push(createSnakeSegment(top, left));
+  }
+  refreshSnakeClasses();
+}
+
+function createNewHead(top, left) {
+  headList.push(createSnakeSegment(top, left));
+  headListLength = headList.length;
+  localStorage.setItem("headListLength", String(headListLength));
+  refreshSnakeClasses();
+}
+
+function foodOverlapsSnake(top, left, size) {
+  return headList.some((segment) => {
+    const segmentTop = Number.parseInt(segment.style.top, 10) || 0;
+    const segmentLeft = Number.parseInt(segment.style.left, 10) || 0;
+    return Math.abs(segmentTop - top) < size && Math.abs(segmentLeft - left) < size;
+  });
+}
+
+function generateRedBall(useStoredPosition = false) {
+  if (!imgContainer) return;
+  if (ball) ball.remove();
+
+  ball = document.createElement("img");
+  ball.src = "img/red.png";
+  ball.alt = "Food";
+  ball.className = "food-orb";
+  ball.style.position = "absolute";
+  imgContainer.appendChild(ball);
+
+  const foodSize = ball.offsetWidth || 26;
+  const maxTop = Math.max(imgContainer.clientHeight - foodSize - 8, 8);
+  const maxLeft = Math.max(imgContainer.clientWidth - foodSize - 8, 8);
+  const storedTop = localStorage.getItem("ballLocationX");
+  const storedLeft = localStorage.getItem("ballLocationY");
+  let top;
+  let left;
+
+  if (useStoredPosition && storedTop !== null && storedLeft !== null) {
+    top = Math.min(Number.parseInt(storedTop, 10) || 8, maxTop);
+    left = Math.min(Number.parseInt(storedLeft, 10) || 8, maxLeft);
+  } else {
+    let attempts = 0;
+    do {
+      top = 8 + Math.floor(Math.random() * Math.max(maxTop - 8, 1));
+      left = 8 + Math.floor(Math.random() * Math.max(maxLeft - 8, 1));
+      attempts += 1;
+    } while (foodOverlapsSnake(top, left, foodSize) && attempts < 25);
+  }
+
+  ball.style.top = `${top}px`;
+  ball.style.left = `${left}px`;
+  localStorage.setItem("ballLocationX", String(top));
+  localStorage.setItem("ballLocationY", String(left));
+}
+
+function checkFoodCollision() {
+  if (!ball || !headList[0]) return false;
+  const foodRect = ball.getBoundingClientRect();
+  const headRect = headList[0].getBoundingClientRect();
+  return !(
+    headRect.bottom < foodRect.top ||
+    headRect.top > foodRect.bottom ||
+    headRect.right < foodRect.left ||
+    headRect.left > foodRect.right
+  );
+}
+
+function checkSelfCollision() {
+  if (headList.length < 5) return false;
+  const headTop = Number.parseInt(headList[0].style.top, 10);
+  const headLeft = Number.parseInt(headList[0].style.left, 10);
+  const hitSize = Math.max(headList[0].offsetWidth * 0.45, step);
+
+  return headList.slice(4).some((segment) => {
+    const top = Number.parseInt(segment.style.top, 10);
+    const left = Number.parseInt(segment.style.left, 10);
+    return Math.abs(headTop - top) < hitSize && Math.abs(headLeft - left) < hitSize;
+  });
+}
+
+function setDirection(nextDirection) {
+  const opposites = { up: "down", down: "up", left: "right", right: "left" };
+  if (opposites[direction] === nextDirection) return;
+  direction = nextDirection;
+  localStorage.setItem("direction", direction);
+}
+
+function move() {
+  if (!isGameRunning || !headList[0]) return;
+
+  const head = headList[0];
+  const previousPositions = headList.map((segment) => ({
+    top: Number.parseInt(segment.style.top, 10) || 0,
+    left: Number.parseInt(segment.style.left, 10) || 0,
+  }));
+  let nextTop = previousPositions[0].top;
+  let nextLeft = previousPositions[0].left;
+
+  if (direction === "up") nextTop -= step;
+  if (direction === "down") nextTop += step;
+  if (direction === "left") nextLeft -= step;
+  if (direction === "right") nextLeft += step;
+
+  const maxTop = imgContainer.clientHeight - head.offsetHeight;
+  const maxLeft = imgContainer.clientWidth - head.offsetWidth;
+  if (nextTop < 0 || nextLeft < 0 || nextTop > maxTop || nextLeft > maxLeft) {
+    endGame();
+    return;
+  }
+
+  head.style.top = `${nextTop}px`;
+  head.style.left = `${nextLeft}px`;
+  for (let index = 1; index < headList.length; index += 1) {
+    headList[index].style.top = `${previousPositions[index - 1].top}px`;
+    headList[index].style.left = `${previousPositions[index - 1].left}px`;
+  }
+
+  if (checkSelfCollision()) {
+    endGame();
+    return;
+  }
+
+  if (checkFoodCollision()) {
+    playAudio(pointAudio);
+    score += 1;
+    localStorage.setItem("score", String(score));
+    const tail = previousPositions[previousPositions.length - 1];
+    createNewHead(tail.top, tail.left);
+    snakeSpeed = Math.max(minimumSnakeSpeed, snakeSpeed - speedIncreaseStep);
+    clearInterval(gameInterval);
+    gameInterval = setInterval(move, snakeSpeed);
+    generateRedBall(false);
+    renderStats();
+  }
+
+  saveSnakePositions();
+}
+
+function beginIntervals() {
+  clearInterval(gameInterval);
+  clearInterval(timerInterval);
+  gameInterval = setInterval(move, snakeSpeed);
+  timerInterval = setInterval(updateTimer, 1000);
+}
+
 function startGame() {
-  clearInterval(gameInterval); //
+  if (!imgContainer) return;
+  isGameRunning = true;
+  renderStats();
+  beginIntervals();
+  playAudio(gameAudio);
+}
 
-  // Load the stored score and duration from localStorage
-  score = parseInt(localStorage.getItem("score")) || 0;
-  duration = parseInt(localStorage.getItem("duration")) || 0;
+function showPauseOverlay(show) {
+  const overlay = document.getElementById("pauseOverlay");
+  const gameStatus = document.getElementById("gameStatus");
+  if (!overlay) return;
 
-  updateTimer();
-  if (!isGameRunning) {
-    // If the game is not running, start it
-    isGameRunning = true;
-    direction = localStorage.getItem("direction") || "right";
-    gameInterval = setInterval(function () {
-      move();
-    }, snakeSpeed);
-
-    timerInterval = setInterval(function () {
-      updateTimer();
-    }, 1000);
+  overlay.hidden = !show;
+  if (gameStatus) gameStatus.textContent = show ? "Game paused" : "Game in progress";
+  if (show) {
+    document.getElementById("pauseScore").textContent = String(score);
+    document.getElementById("pauseBest").textContent = String(readNumber("highScore"));
   }
 }
 
 function pause() {
+  if (!isGameRunning) return;
+  isGameRunning = false;
+  clearInterval(gameInterval);
+  clearInterval(timerInterval);
+  pauseAudio(gameAudio);
+  setHighScore();
+  showPauseOverlay(true);
+}
+
+function toggleGame() {
+  if (!imgContainer) return;
   if (isGameRunning) {
-    // If the game is already running, stop it
-    isGameRunning = false;
-    clearInterval(timerInterval);
+    pause();
+  } else {
+    showPauseOverlay(false);
+    isGameRunning = true;
+    beginIntervals();
+    playAudio(gameAudio);
   }
+}
+
+function clearRunStorage() {
+  [
+    "score",
+    "duration",
+    "currentTop",
+    "currentLeft",
+    "direction",
+    "ballLocationX",
+    "ballLocationY",
+    "headListLength",
+    "snakePositions",
+  ].forEach((key) => localStorage.removeItem(key));
 }
 
 function resetGame() {
   clearInterval(gameInterval);
   clearInterval(timerInterval);
-
-  step = initialStep;
+  clearTimeout(redirectTimer);
+  clearRunStorage();
+  score = 0;
+  duration = 0;
+  headListLength = 1;
+  direction = "right";
   snakeSpeed = initialSnakeSpeed;
   isGameRunning = false;
-  duration = 0;
-  score = 0;
-  localStorage.removeItem("score");
-  localStorage.removeItem("duration");
-  localStorage.removeItem("currentTop");
-  localStorage.removeItem("currentLeft");
-  localStorage.removeItem("direction");
-  localStorage.removeItem("ballLocationX");
-  localStorage.removeItem("ballLocationY");
+  pauseAudio(gameAudio, true);
 
-  // keeping them before timer and scoreBTN to avoid null exceptions
-  if (headList) {
-    headList.forEach((head) => head.parentNode.removeChild(head));
-    headList = [];
+  if (!imgContainer) {
+    renderStats();
+    return;
   }
-  localStorage.removeItem("headListLength");
-  headListLength = 1;
-  headList.length = 0;
 
-  document.getElementById("timer").innerText = "00 : 00 : 00";
-  document.getElementById("scorebtn").textContent = "Score: 0";
-
+  showPauseOverlay(false);
   createHead();
-  generateRedBall();
+  generateRedBall(false);
   startGame();
 }
 
-function toggleGame() {
-  if (isGameRunning) {
-    pause();
-    document.getElementById("pausebtn").innerText = "Start";
-    window.location.href = "pausePage.html";
-  } else {
-    startGame();
-    document.getElementById("pausebtn").innerText = "Pause";
-  }
-}
-
-function createHead() {
-  if (headList) {
-    headList.forEach((head) => head.parentNode.removeChild(head));
-    headList = [];
-  }
-  localStorage.removeItem(headListLength);
-  if (headList.length === 0) {
-    for (let i = 0; i < headListLength; i++) {
-      let head = createSnakeSegment(5, 5);
-      headList.push(head); // Add the new head to the array
-    }
-    refreshSnakeClasses();
-  }
-}
-
-function createNewHead() {
-  const lastHead = headList[headList.length - 1];
-  const newHead = createSnakeSegment(
-    parseInt(lastHead.style.top) || 5,
-    parseInt(lastHead.style.left) || 5
-  );
-  headList.push(newHead);
-  refreshSnakeClasses();
-}
-
-
-// Function to update the timer display
-function updateTimer() {
-  score = parseInt(localStorage.getItem("score")) || 0;
-  duration = parseInt(localStorage.getItem("duration")) || 0;
-
-  // Calculate hours, minutes, and seconds
-  const hours = Math.floor(duration / 3600);
-  const minutes = Math.floor((duration % 3600) / 60);
-  const seconds = duration % 60;
-
-  // Format the timer display
-  const timerDisplay = `${hours} : ${minutes < 10 ? "0" : ""}${minutes} : ${seconds < 10 ? "0" : ""
-    }${seconds}`;
-
-  // Increase the duration by one second
-  duration++;
-  localStorage.setItem("duration", duration);
-
-  document.getElementById("timer").innerText = `${timerDisplay}`;
-  document.getElementById("scorebtn").textContent = `Score: ${score}`;
-}
-
-function generateRedBall() {
-  if (ball != null) {
-    ball.remove();
-  }
-
-  ball = document.createElement("img");
-  ball.src = "img/red.png";
-  ball.alt = "ball";
-  ball.classList.add("food-orb");
-  ball.style.height = "4vh";
-  ball.style.width = "4vh";
-
-  // to generate ball in ranfdom locations
-  ballLocationX =
-    parseInt(localStorage.getItem("ballLocationX")) ||
-    Math.floor(
-      Math.random() * (imgContainer.clientHeight - (ball.clientHeight + 30))
-    );
-  ballLocationY =
-    parseInt(localStorage.getItem("ballLocationY")) ||
-    Math.floor(
-      Math.random() * (imgContainer.clientWidth - (ball.clientWidth + 30))
-    );
-
-  ball.style.position = "absolute";
-  ball.style.top = ballLocationX + "px";
-  ball.style.left = ballLocationY + "px";
-
-  imgContainer.appendChild(ball);
-}
-
-function checkCollision() {
- let rect = ball.getBoundingClientRect();
-  const headRect = headList[0].getBoundingClientRect(); // Check collision with the first head
-  return !(
-    headRect.bottom < rect.top ||
-    headRect.top > rect.bottom ||
-    headRect.right < rect.left ||
-    headRect.left > rect.right
-  );
-}
-
-function checkSelfCollision() {
-  const currentHead = headList[0];
-  const currentHeadRect = currentHead.getBoundingClientRect();
-
-  // Iterate over the remaining heads (excluding the first one)
-  for (let i = 1; i < headList.length; i++) {
-    const head = headList[i];
-    const headRect = head.getBoundingClientRect();
-
-    // Check if the current head's position overlaps with any other head
-    if (
-      currentHeadRect.left === headRect.left &&
-      currentHeadRect.top === headRect.top
-    ) {
-      return true; // Collision detected
-    }
-  }
-  return false; // No collision detected
-}
-
-function setHighScore() {
-  const storedScore = parseInt(localStorage.getItem("score")) || 0;
-  highScore = parseInt(localStorage.getItem("highScore")) || 0;
-
-  if (storedScore > highScore) {
-    highScore = storedScore;
-    localStorage.setItem("highScore", highScore);
-  }
-
-  updateHighScore();
-}
-
-function updateHighScore() {
-  highScore = parseInt(localStorage.getItem("highScore")) || 0;
-  const highScoreBtn = document.getElementById("highScorebtn");
-  if (highScoreBtn) {
-    highScoreBtn.textContent = `High Score: ${highScore}`;
-  }
-}
-
-
-function move() {
-  playAudio(gameAudio)
+function endGame() {
   if (!isGameRunning) return;
+  isGameRunning = false;
+  clearInterval(gameInterval);
+  clearInterval(timerInterval);
+  pauseAudio(gameAudio, true);
+  setHighScore();
+  playAudio(crashAudio);
 
-  let currentHead = headList[0];
-
-  currentHead.style.top = localStorage.getItem("currentTop") || 5;
-  currentHead.style.left = localStorage.getItem("currentLeft") || 5;
-
- let currentTop = parseInt(currentHead.style.top);
-  let currentLeft = parseInt(currentHead.style.left);
-
-
-  // the functions cheecks for self collision and collision with the border
-  if (checkSelfCollision()||currentTop <= 0 ||
-  currentTop >= imgContainer.clientHeight - currentHead.clientHeight ||
-  currentLeft <= 0 ||
-  currentLeft >= imgContainer.clientWidth - currentHead.clientWidth
-) {
-    {
-      isGameRunning = false;
-      pauseAudio(gameOverAudio);
-      playAudio(crashAudio);
-      if (!isMuted) {
-        setTimeout(function () {
-          window.location.href = "gameOver.html";
-        }, 2500);
-      } else {
-        window.location.href = "gameOver.html";
-      }
-    }
-  }
-  //to check collision with the ball
-  if (checkCollision()) {
-    pauseAudio(gameOverAudio);
-    playAudio(pointAudio);
-    score += 1;
-    document.getElementById("scorebtn").textContent = `Score: ${score}`;
-    localStorage.setItem("score", score);
-    localStorage.removeItem("ballLocationX");
-    localStorage.removeItem("ballLocationY");
-    generateRedBall();
-    if (isMobile) {
-      snakeSpeed = Math.max(minSnakeSpeed, snakeSpeed - speedIncreaseStep);
-      clearInterval(gameInterval);
-      gameInterval = setInterval(function () {
-        move();
-      }, snakeSpeed);
-    }
-    headListLength++;
-    localStorage.setItem("headListLength", headListLength);
-    // createHead();
-    createNewHead();
-  }
-
-
-  for (let i = headList.length - 1; i > 0; i--) {
-    // Move each head to the position of the previous head
-    headList[i].style.top = headList[i - 1].style.top;
-    headList[i].style.left = headList[i - 1].style.left;
-  }
-
-  switch (direction) {
-    case "up":
-      currentHead.style.top = Math.max(currentTop - step, 0) + "px";
-      break;
-    case "down":
-      currentHead.style.top =
-        Math.min(
-          currentTop + step,
-          imgContainer.clientHeight - currentHead.clientHeight
-        ) + "px";
-      break;
-    case "left":
-      currentHead.style.left = Math.max(currentLeft - step, 0) + "px";
-      break;
-    case "right":
-      currentHead.style.left =
-        Math.min(
-          currentLeft + step,
-          imgContainer.clientWidth - currentHead.clientWidth
-        ) + "px";
-      break;
-    case "none":
-      break;
-  }
-  localStorage.setItem("currentTop", currentHead.style.top);
-  localStorage.setItem("currentLeft", currentHead.style.left);
-  localStorage.setItem("direction", direction);
-
-
+  redirectTimer = setTimeout(() => {
+    window.location.href = "gameOver.html";
+  }, currentMuteState() ? 350 : 1100);
 }
 
+function handleKeyboard(event) {
+  const keyDirections = {
+    ArrowDown: "down",
+    s: "down",
+    S: "down",
+    ArrowUp: "up",
+    w: "up",
+    W: "up",
+    ArrowLeft: "left",
+    a: "left",
+    A: "left",
+    ArrowRight: "right",
+    d: "right",
+    D: "right",
+  };
 
-document.addEventListener("keydown", function (event) {
-  if (isGameRunning) {
-    const currentDirection = localStorage.getItem("direction");
-    // Prevent the default action for these keys
-    if (
-      (currentDirection === "down" && (event.keyCode === 87 || event.key === "ArrowUp")) ||
-      (currentDirection === "up" && (event.keyCode === 83 || event.key === "ArrowDown")) ||
-      (currentDirection === "right" && (event.keyCode === 65 || event.key === "ArrowLeft")) ||
-      (currentDirection === "left" && (event.keyCode === 68 || event.key === "ArrowRight"))
-    ) {
-      return;
-    }
+  if (keyDirections[event.key]) {
+    if (page === "game") event.preventDefault();
+    setDirection(keyDirections[event.key]);
+    return;
   }
-  if (
-    event.key === "ArrowDown" ||
-    event.keyCode === 40 ||
-    event.key === "S" ||
-    event.key === "s"
-  ) {
-    direction = "down";
-  }
-  if (
-    event.key === "ArrowUp" ||
-    event.keyCode === 38 ||
-    event.key === "W" ||
-    event.key === "w"
-  ) {
-    direction = "up";
-  }
-  if (
-    event.key === "ArrowLeft" ||
-    event.keyCode === 37 ||
-    event.key === "A" ||
-    event.key === "a"
-  ) {
-    direction = "left";
-  }
-  if (
-    event.key === "ArrowRight" ||
-    event.keyCode === 39 ||
-    event.key === "D" ||
-    event.key === "d"
-  ) {
-    direction = "right";
-  }
-    // to mute when m is pressed
-    if (event.keyCode === 77) {
-      toggleMute();
-    }
-  //pause / resume when clicked space or  enter
-  if (event.keyCode === 32 || event.keyCode === 13) {
-    if (window.location.pathname.includes("index.html")) {
+
+  if (event.key === "m" || event.key === "M") toggleMute();
+
+  if (event.code === "Space" || event.key === "Enter") {
+    if (page === "game") {
+      event.preventDefault();
+      toggleGame();
+    } else if (page === "home") {
+      resetGame();
       window.location.href = "gamePage.html";
-      document.getElementById("gamebtn").click();
-    }
-    if (window.location.pathname.includes("gamePage.html")) {
-      toggleGame();
-      document.getElementById("pausebtn").click();
-    }
-    if (window.location.pathname.includes("pausePage.html")) {
-      toggleGame();
-      document.getElementById("pausebtn").click();
-    }
-    if (window.location.pathname.includes("gameOver.html")) {
-      document.getElementById("resetbtn").click();
+    } else if (page === "gameover") {
+      resetGame();
+      window.location.href = "gamePage.html";
     }
   }
-});
+}
 
-// Function to handle touch events for direction control
 function handleTouchStart(event) {
-  const touchStartX = event.touches[0].clientX;
-  const touchStartY = event.touches[0].clientY;
-  
-  document.addEventListener('touchmove', function handleTouchMove(event) {
-    const touchEndX = event.touches[0].clientX;
-    const touchEndY = event.touches[0].clientY;
-    
-    const deltaX = touchEndX - touchStartX;
-    const deltaY = touchEndY - touchStartY;
-    
-    // Determine the direction based on the swipe gesture
-    if (Math.abs(deltaX) > Math.abs(deltaY)) {
-      // Horizontal swipe
-      if (deltaX > 0) {
-        direction = 'right';
-      } else {
-        direction = 'left';
-      }
-    } else {
-      // Vertical swipe
-      if (deltaY > 0) {
-        direction = 'down';
-      } else {
-        direction = 'up';
-      }
-    }
-    
-    // Prevent scrolling while swiping
-    event.preventDefault();
-  });
+  if (!isGameRunning || event.touches.length !== 1) return;
+  touchStartX = event.touches[0].clientX;
+  touchStartY = event.touches[0].clientY;
 }
 
-// Add touch event listeners
-document.addEventListener('touchstart', handleTouchStart, { passive: false });
+function handleTouchEnd(event) {
+  if (!isGameRunning || event.changedTouches.length !== 1) return;
+  const deltaX = event.changedTouches[0].clientX - touchStartX;
+  const deltaY = event.changedTouches[0].clientY - touchStartY;
+  if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 24) return;
 
-
-// Page specifics:
-if (window.location.pathname.includes("gamePage.html") || window.location.pathname.includes("gameOver.html") || window.location.pathname.includes("index.html")) {
-  const soundImg = document.getElementById("soundImg");
-  if (soundImg) {
-    soundImg.addEventListener("click", toggleMute);
+  if (Math.abs(deltaX) > Math.abs(deltaY)) {
+    setDirection(deltaX > 0 ? "right" : "left");
+  } else {
+    setDirection(deltaY > 0 ? "down" : "up");
   }
-  // Call the mute function on page load to apply the initial mute state
-  document.addEventListener("DOMContentLoaded", function () {
-    // Get the initial mute state from localStorage
-    const isMuted = localStorage.getItem("isMuted") === "true";
-    // Call the mute function to apply the initial state
-    muteSounds(isMuted);
-    // Update the mute button text
-    updateMuteButtonImg(isMuted);
+}
+
+function initializePage() {
+  const isMuted = currentMuteState();
+  muteSounds(isMuted);
+  updateMuteButtonImg(isMuted);
+  renderStats();
+
+  document.getElementById("soundToggle")?.addEventListener("click", toggleMute);
+  document.querySelectorAll("[data-direction]").forEach((button) => {
+    button.addEventListener("pointerdown", () => setDirection(button.dataset.direction));
   });
+  document.addEventListener("keydown", handleKeyboard);
+
+  if (imgContainer) {
+    imgContainer.addEventListener("touchstart", handleTouchStart, { passive: true });
+    imgContainer.addEventListener("touchend", handleTouchEnd, { passive: true });
+  }
+
+  if (page === "game") {
+    createHead();
+    generateRedBall(true);
+    startGame();
+  }
+
+  if (page === "gameover") {
+    setHighScore();
+    playAudio(gameOverAudio);
+  }
+
+  if (page === "pause") setHighScore();
 }
 
-if (window.location.pathname.includes("gamePage.html")) {
-  generateRedBall();
-  createHead();
-  localStorage.setItem("ballLocationX", ballLocationX);
-  localStorage.setItem("ballLocationY", ballLocationY);
-  startGame();
-}
-
-if (window.location.pathname.includes("gameOver.html")) {
-  document.addEventListener("DOMContentLoaded", function () {
-  playAudio(gameOverAudio)
-  });
-  setHighScore()
-  updateHighScore();
-  updateTimer();
-}
-
-if (window.location.pathname.includes("pausePage.html")) {
-  setHighScore()
-  updateHighScore();
-  updateTimer();
-}
+initializePage();

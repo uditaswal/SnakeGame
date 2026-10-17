@@ -4,34 +4,85 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="description" content="Play the classic Snake Game with modern UI and mobile support" />
-  <meta name="theme-color" content="#6BAE3F" />
-  <link rel="stylesheet" href="style.css?v=5" />
+  <meta name="description" content="Play a fast, responsive take on the classic Snake arcade game." />
+  <meta name="theme-color" content="#07110d" />
+  <link rel="stylesheet" href="style.css?v=6" />
   <link rel="icon" href="img/thumbnail.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Madimi+One:wght@400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Madimi+One&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="script.js" defer></script>
-  <title>Snake Game - Modern & Responsive</title>
+  <title>Snake — Neon Arcade</title>
 </head>
 
-<body>
-  <div class="page-wrapper">
-    <main class="page-content">
-      <div class="imgContainer" id="startPage-imgContainer">
-        <h1 class="Title">Snake Game</h1>
-        <div class="startPage-buttons">
-          <a href="gamePage.html">
-            <button type="button" class="startPage-btn" id="gamebtn" onclick="resetGame()">
-              Start Game
-            </button>
+<body class="landing-page" data-page="home">
+  <div class="ambient-orb ambient-orb--one" aria-hidden="true"></div>
+  <div class="ambient-orb ambient-orb--two" aria-hidden="true"></div>
+
+  <div class="site-shell">
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Snake home">
+        <span class="brand-mark" aria-hidden="true">S</span>
+        <span>SNAKE</span>
+      </a>
+      <span class="status-pill"><span class="status-dot"></span> Arcade online</span>
+    </header>
+
+    <main class="hero">
+      <section class="hero-copy" aria-labelledby="hero-title">
+        <p class="eyebrow">A timeless arcade classic</p>
+        <h1 id="hero-title">Chase the bite.<br /><span>Own the board.</span></h1>
+        <p class="hero-description">
+          Guide the snake, stack your score, and stay sharp as the pace climbs.
+          Simple to learn. Very hard to put down.
+        </p>
+
+        <div class="hero-actions">
+          <a class="button button--primary button--large" id="gamebtn" href="gamePage.html" onclick="resetGame()">
+            <span>Play now</span><span aria-hidden="true">&#8594;</span>
           </a>
+          <div class="best-score" aria-label="Your local best score">
+            <span>Personal best</span>
+            <strong id="heroHighScore">0</strong>
+          </div>
         </div>
-      </div>
+
+        <div class="control-hints" aria-label="Game controls">
+          <div class="control-hint">
+            <span class="key-cluster" aria-hidden="true"><kbd>&uarr;</kbd><span><kbd>&larr;</kbd><kbd>&darr;</kbd><kbd>&rarr;</kbd></span></span>
+            <span><strong>Move</strong>Arrow keys or WASD</span>
+          </div>
+          <div class="control-hint">
+            <kbd class="wide-key" aria-hidden="true">SPACE</kbd>
+            <span><strong>Pause</strong>Take a breather</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="hero-visual" aria-label="Snake game preview">
+        <div class="preview-glow" aria-hidden="true"></div>
+        <div class="preview-card">
+          <div class="preview-toolbar">
+            <div><span class="preview-label">Score</span><strong>128</strong></div>
+            <span class="live-chip"><span></span> Live</span>
+            <div class="preview-time"><span class="preview-label">Time</span><strong>01:24</strong></div>
+          </div>
+          <div class="preview-board" aria-hidden="true">
+            <span class="pixel-snake pixel-snake--1"></span>
+            <span class="pixel-snake pixel-snake--2"></span>
+            <span class="pixel-snake pixel-snake--3"></span>
+            <span class="pixel-snake pixel-snake--4"></span>
+            <span class="pixel-snake pixel-snake--5"></span>
+            <span class="pixel-food"></span>
+          </div>
+          <div class="preview-caption"><span>Next level</span><strong>4 bites away</strong></div>
+        </div>
+      </section>
     </main>
-    <footer class="app-footer">
-      <p>&copy; 2025 Snake Game &bull; Built by Udit Aswal</p>
-      <div class="footer-links">
+
+    <footer class="site-footer">
+      <p>&copy; 2026 Udit Aswal</p>
+      <div>
         <a href="https://portfolio-uditaswal.vercel.app/" target="_blank" rel="noopener noreferrer">Portfolio</a>
         <a href="https://github.com/uditaswal" target="_blank" rel="noopener noreferrer">GitHub</a>
       </div>

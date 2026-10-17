@@ -4,28 +4,75 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="description" content="Play the classic Snake Game with modern UI and mobile support" />
-  <meta name="theme-color" content="#6BAE3F" />
-  <link rel="stylesheet" href="style.css?v=5" />
+  <meta name="description" content="Play a fast, responsive take on the classic Snake arcade game." />
+  <meta name="theme-color" content="#07110d" />
+  <link rel="stylesheet" href="style.css?v=6" />
   <link rel="icon" href="img/thumbnail.png" />
-  <script src="script.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Madimi+One:wght@400&display=swap" rel="stylesheet" />
-  <title>Snake Game - Play</title>
+  <link href="https://fonts.googleapis.com/css2?family=Madimi+One&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="script.js" defer></script>
+  <title>Snake — Play</title>
 </head>
 
-<body>
-  <div class="game-wrapper">
-    <div class="control-panel buttons">
-      <a href="pausePage.html"><button type="button" id="pausebtn">Pause</button></a>
-      <button type="button" id="resetbtn" onclick="resetGame()">Reset</button>
-      <button type="button" id="scorebtn">Score: 0</button>
-      <button type="button" id="timer">0 : 00 : 00</button>
-      <img id="soundImg" src="img/mute-button.png" onclick="gameAudio.pause()" alt="Sound Toggle" />
-    </div>
-    <div class="game-area">
-      <div class="imgContainer" id="imgContainer"></div>
+<body class="game-page" data-page="game">
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="brand brand--compact" href="index.html" aria-label="Back to home">
+        <span class="brand-mark" aria-hidden="true">S</span>
+        <span>SNAKE</span>
+      </a>
+
+      <div class="hud" aria-label="Game status">
+        <div class="hud-stat"><span>Score</span><strong id="scorebtn">0</strong></div>
+        <div class="hud-stat"><span>Time</span><strong id="timer">00:00</strong></div>
+      </div>
+
+      <div class="game-actions">
+        <button type="button" class="icon-button" id="soundToggle" aria-label="Toggle sound" title="Toggle sound">
+          <img id="soundImg" src="img/mute-button.png" alt="" />
+        </button>
+        <button type="button" class="button button--ghost" id="resetbtn" onclick="resetGame()">Restart</button>
+        <button type="button" class="button button--primary" id="pausebtn" onclick="toggleGame()">Pause</button>
+      </div>
+    </header>
+
+    <main class="game-main">
+      <div class="board-heading">
+        <div><span class="status-dot"></span><span id="gameStatus">Game in progress</span></div>
+        <p>Swipe or use the controls to move</p>
+      </div>
+
+      <div class="board-frame">
+        <div class="game-area">
+          <div class="imgContainer" id="imgContainer" role="application" aria-label="Snake game board"></div>
+        </div>
+      </div>
+
+      <div class="mobile-controls" aria-label="Touch direction controls">
+        <button type="button" class="direction-button direction-button--up" data-direction="up" aria-label="Move up">&#8593;</button>
+        <button type="button" class="direction-button direction-button--left" data-direction="left" aria-label="Move left">&#8592;</button>
+        <button type="button" class="direction-button direction-button--down" data-direction="down" aria-label="Move down">&#8595;</button>
+        <button type="button" class="direction-button direction-button--right" data-direction="right" aria-label="Move right">&#8594;</button>
+      </div>
+    </main>
+
+    <div class="game-overlay" id="pauseOverlay" hidden>
+      <section class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+        <span class="dialog-icon" aria-hidden="true">II</span>
+        <p class="eyebrow">Run suspended</p>
+        <h1 id="pause-title">Paused</h1>
+        <p>Your snake is safe. Jump back in whenever you are ready.</p>
+        <div class="dialog-stats">
+          <div><span>Score</span><strong id="pauseScore">0</strong></div>
+          <div><span>Best</span><strong id="pauseBest">0</strong></div>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="button button--primary button--large" onclick="toggleGame()">Resume game</button>
+          <button type="button" class="button button--ghost" onclick="resetGame()">Restart</button>
+          <a class="text-link" href="index.html">Quit to menu</a>
+        </div>
+      </section>
     </div>
   </div>
 </body>

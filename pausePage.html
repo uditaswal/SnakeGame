@@ -4,52 +4,36 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="description" content="Play the classic Snake Game with modern UI and mobile support" />
-  <meta name="theme-color" content="#6BAE3F" />
-  <link rel="stylesheet" href="style.css?v=5" />
+  <meta name="theme-color" content="#07110d" />
+  <link rel="stylesheet" href="style.css?v=6" />
   <link rel="icon" href="img/thumbnail.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Madimi+One:wght@400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Madimi+One&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="script.js" defer></script>
-  <title>Snake Game - Paused</title>
+  <title>Snake — Paused</title>
 </head>
 
-<body>
-  <div class="page-wrapper">
-    <main class="page-content">
-      <div class="imgContainer" id="pausePage-imgContainer">
-        <h1 class="Title">Paused</h1>
-        <div class="pausePage-buttons">
-          <a href="gamePage.html">
-            <button type="button" class="pausePage-btn" id="pausebtn" onclick="toggleGame()">
-              Resume
-            </button>
-          </a>
-          <a href="gamePage.html"><button type="button" class="pausePage-btn" id="resetbtn" onclick="resetGame()">
-              Reset
-            </button>
-          </a>
-          <button type="button" class="pausePage-btn" id="scorebtn">
-            Score: 0
-          </button>
-          <button type="button" class="pausePage-btn" id="highScorebtn">
-            High Score: 0
-          </button>
-          <button type="button" class="pausePage-btn" id="timer">
-            0 : 00 : 00
-          </button>
-        </div>
+<body class="result-page" data-page="pause">
+  <main class="result-shell">
+    <a class="brand" href="index.html" aria-label="Snake home"><span class="brand-mark">S</span><span>SNAKE</span></a>
+    <section class="dialog-card dialog-card--standalone">
+      <span class="dialog-icon" aria-hidden="true">II</span>
+      <p class="eyebrow">Run suspended</p>
+      <h1>Paused</h1>
+      <p>Your run is waiting for you.</p>
+      <div class="dialog-stats dialog-stats--three">
+        <div><span>Score</span><strong id="scorebtn">0</strong></div>
+        <div><span>Best</span><strong id="highScorebtn">0</strong></div>
+        <div><span>Time</span><strong id="timer">00:00</strong></div>
       </div>
-    </main>
-    <footer class="app-footer">
-      <p>&copy; 2025 Snake Game &bull; Built by Udit Aswal</p>
-      <div class="footer-links">
-        <a href="https://portfolio-uditaswal.vercel.app/" target="_blank" rel="noopener noreferrer">Portfolio</a>
-        <a href="https://github.com/uditaswal" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <div class="dialog-actions">
+        <a class="button button--primary button--large" id="pausebtn" href="gamePage.html">Resume game</a>
+        <a class="button button--ghost" id="resetbtn" href="gamePage.html" onclick="resetGame()">Restart</a>
+        <a class="text-link" href="index.html">Quit to menu</a>
       </div>
-    </footer>
-  </div>
+    </section>
+  </main>
 </body>
 
 </html>
