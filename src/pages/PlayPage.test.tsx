@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createGame, DEFAULT_CONFIG } from '../game/engine'
 import { RUN_STORAGE_KEY, serializeRun } from '../game/persistence'
 import { PlayPage } from './PlayPage'
-import { CHALLENGE_TIMEOUT_MS } from '../lib/run-api'
+import { CHALLENGE_TIMEOUT_MS, readPendingRun } from '../lib/run-api'
 
 const challengeResponse = {
   challenge: 'a'.repeat(43),
@@ -120,7 +120,7 @@ describe('PlayPage', () => {
     expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument()
     expect(screen.queryByText('Preparing board…')).not.toBeInTheDocument()
     expect((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].signal?.aborted).toBe(true)
-    fireEvent.keyDown(window, { key: 'p' })
+    fireEvent.keyDown(window, { code: 'Space', key: ' ' })
     await act(async () => {
       resolveRequest({ ok: true, status: 201, json: async () => challengeResponse })
     })
@@ -177,13 +177,35 @@ describe('PlayPage', () => {
       challenge: { ...challengeResponse, expiresAt: new Date(Date.now() + 120_000).toISOString() },
       moves: [],
     }))
-    vi.stubGlobal('fetch', vi.fn(async (path: string) => path === '/api/auth/session'
+    const fetchMock = vi.fn(async (path: string) => path === '/api/auth/session'
       ? { ok: true, status: 200, json: async () => ({ user: { id: 'test', username: 'Tester', createdAt: new Date().toISOString() } }) }
-      : { ok: false, status: 503, json: async () => ({ error: { code: 'UNAVAILABLE', message: 'Try again.' } }) }))
+      : { ok: false, status: 503, json: async () => ({ error: { code: 'UNAVAILABLE', message: 'Try again.' } }) })
+    vi.stubGlobal('fetch', fetchMock)
     render(<MemoryRouter><PlayPage /></MemoryRouter>)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Save score to my account' }))
     expect(await screen.findByText('Could not save this score. Your local best is safe.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([path]) => path === '/api/runs/submit')).toHaveLength(2))
+  })
+
+  it('automatically saves a challenge-backed score for a signed-in player', async () => {
+    const base = createGame(DEFAULT_CONFIG, () => 0)
+    sessionStorage.setItem(RUN_STORAGE_KEY, serializeRun({
+      state: { ...base, snake: [...base.snake, { x: 7, y: 10 }], food: { x: 0, y: 0 }, score: 1, ticks: 6, status: 'lost', lossReason: 'wall' },
+      config: DEFAULT_CONFIG,
+      elapsedMs: 780,
+      challenge: { ...challengeResponse, expiresAt: new Date(Date.now() + 120_000).toISOString() },
+      moves: [],
+    }))
+    const fetchMock = vi.fn(async (path: string) => path === '/api/auth/session'
+      ? { ok: true, status: 200, json: async () => ({ user: { id: 'test', username: 'Tester', createdAt: new Date().toISOString() } }) }
+      : { ok: true, status: 201, json: async () => ({ saved: true, score: 1, achievedAt: new Date().toISOString() }) })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<MemoryRouter><PlayPage /></MemoryRouter>)
+
+    expect(await screen.findByRole('link', { name: 'Score saved — view leaderboard' })).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/runs/submit', expect.objectContaining({ method: 'POST' }))
+    expect(readPendingRun()).toBeNull()
   })
 })

@@ -7,11 +7,12 @@ import { PlaceholderPage } from './pages/PlaceholderPage'
 import { LeaderboardPage } from './pages/LeaderboardPage'
 import { PrivacyPage } from './pages/PrivacyPage'
 import { TermsPage } from './pages/TermsPage'
+import { SessionProvider } from './lib/session-provider'
 import { SiteLayout } from './ui/SiteLayout'
 
 export function App() {
   return (
-    <>
+    <SessionProvider>
       <ScrollToTop />
       <Routes>
         <Route element={<SiteLayout />}>
@@ -27,7 +28,7 @@ export function App() {
           />
         </Route>
       </Routes>
-    </>
+    </SessionProvider>
   )
 }
 

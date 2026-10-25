@@ -320,10 +320,11 @@ export function PlayPage() {
     storedRunTick.current = game.ticks;
     clearCheckpoint();
 
-    if (game.score > personalBest) {
-      setPersonalBest(game.score);
+    setPersonalBest((currentBest) => {
+      if (game.score <= currentBest) return currentBest;
       writePersonalBest(game.score);
-    }
+      return game.score;
+    });
     if (game.score === 0) {
       setSaveState("idle");
       return;
@@ -344,9 +345,26 @@ export function PlayPage() {
       rows: config.rows,
       moves: moves.current,
     });
-    getSession()
-      .then(({ user }) => setSaveState(user ? "ready" : "guest"))
-      .catch(() => setSaveState("guest"));
+    let active = true;
+    void (async () => {
+      try {
+        const { user } = await getSession();
+        if (!active) return;
+        if (!user) {
+          setSaveState("guest");
+          return;
+        }
+        setSaveState("saving");
+        const score = await submitPendingRun();
+        if (!active) return;
+        setSaveState(score === null ? "error" : "saved");
+      } catch {
+        if (active) setSaveState("error");
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, [
     config.columns,
     config.rows,
@@ -354,7 +372,6 @@ export function PlayPage() {
     game.score,
     game.status,
     game.ticks,
-    personalBest,
   ]);
 
   async function saveScore() {
@@ -394,40 +411,45 @@ export function PlayPage() {
           <h1>Classic Snake.</h1>
           <p>Eat the food, avoid the walls and your own tail.</p>
         </div>
-        <div className="run-actions">
-          <button
-            type="button"
-            onClick={toggle}
-            disabled={game.status === "lost" || game.status === "won"}
-          >
-            {game.status === "running" ? (
-              <Pause aria-hidden="true" />
-            ) : (
-              <Play aria-hidden="true" />
-            )}
-            {game.status === "running"
-              ? "Pause"
-              : game.status === "paused"
-                ? "Resume"
-                : "Start"}
-          </button>
-          <button type="button" onClick={restart}>
-            <RotateCcw aria-hidden="true" /> Restart
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              void toggleFullscreen();
-            }}
-            aria-label={isFullscreen ? "Exit full screen" : "Play full screen"}
-          >
-            {isFullscreen ? (
-              <Minimize aria-hidden="true" />
-            ) : (
-              <Maximize aria-hidden="true" />
-            )}
-            {isFullscreen ? "Exit" : "Full screen"}
-          </button>
+        <div className="run-controls">
+          <div className="run-actions">
+            <button type="button" onClick={toggle}>
+              {game.status === "running" ? (
+                <Pause aria-hidden="true" />
+              ) : (
+                <Play aria-hidden="true" />
+              )}
+              {game.status === "running"
+                ? "Pause"
+                : game.status === "lost" || game.status === "won"
+                  ? "Play again"
+                  : game.status === "paused"
+                    ? "Resume"
+                    : "Start"}
+            </button>
+            <button type="button" onClick={restart}>
+              <RotateCcw aria-hidden="true" /> Restart
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void toggleFullscreen();
+              }}
+              aria-label={
+                isFullscreen ? "Exit full screen" : "Play full screen"
+              }
+            >
+              {isFullscreen ? (
+                <Minimize aria-hidden="true" />
+              ) : (
+                <Maximize aria-hidden="true" />
+              )}
+              {isFullscreen ? "Exit" : "Full screen"}
+            </button>
+          </div>
+          <p className="shortcut-hint">
+            <kbd>Space</kbd> start, pause or restart
+          </p>
         </div>
       </div>
 
@@ -435,7 +457,9 @@ export function PlayPage() {
         className={`play-stage${isFullscreen ? " play-stage--fullscreen" : ""}`}
         ref={stageRef}
       >
-        <div className="score-strip">
+        <div
+          className={`score-strip${isFullscreen ? " score-strip--fullscreen" : ""}`}
+        >
           <span aria-live="polite">
             <small>Score</small>
             <strong>{game.score.toString().padStart(2, "0")}</strong>
@@ -449,6 +473,16 @@ export function PlayPage() {
               {minutes}:{remainingSeconds}
             </strong>
           </span>
+          {isFullscreen ? (
+            <FullscreenActions
+              game={game}
+              onToggle={toggle}
+              onRestart={restart}
+              onExit={() => {
+                void toggleFullscreen();
+              }}
+            />
+          ) : null}
         </div>
 
         <div
@@ -530,17 +564,7 @@ export function PlayPage() {
               </button>
             </div>
           ) : null}
-          {isFullscreen ? (
-            <FullscreenControls
-              game={game}
-              onToggle={toggle}
-              onRestart={restart}
-              onExit={() => {
-                void toggleFullscreen();
-              }}
-              onTurn={turn}
-            />
-          ) : null}
+          {isFullscreen ? <FullscreenDpad onTurn={turn} /> : null}
         </div>
       </div>
 
@@ -599,7 +623,9 @@ export function PlayPage() {
         ) : null}
         {saveState === "saving" ? <span>Saving score…</span> : null}
         {saveState === "saved" ? (
-          <span className="save-success">Score saved</span>
+          <Link className="save-success" to="/leaderboard">
+            Score saved — view leaderboard
+          </Link>
         ) : null}
         {saveState === "error" ? (
           <span className="save-error">
@@ -692,73 +718,81 @@ function isInteractiveTarget(target: EventTarget | null): boolean {
   );
 }
 
-function FullscreenControls({
+function FullscreenActions({
   game,
   onToggle,
   onRestart,
   onExit,
-  onTurn,
 }: {
   game: GameState;
   onToggle: () => void;
   onRestart: () => void;
   onExit: () => void;
+}) {
+  return (
+    <div className="fullscreen-actions" role="group" aria-label="Fullscreen game controls">
+      <button type="button" onClick={onToggle} aria-label={gameActionLabel(game)}>
+        {game.status === "running" ? (
+          <Pause aria-hidden="true" />
+        ) : (
+          <Play aria-hidden="true" />
+        )}
+        <span>{gameActionLabel(game)}</span>
+      </button>
+      <button type="button" onClick={onRestart} aria-label="Restart">
+        <RotateCcw aria-hidden="true" />
+        <span>Restart</span>
+      </button>
+      <button type="button" onClick={onExit} aria-label="Exit full screen">
+        <X aria-hidden="true" />
+        <span>Exit</span>
+      </button>
+    </div>
+  );
+}
+
+function FullscreenDpad({
+  onTurn,
+}: {
   onTurn: (direction: Direction) => void;
 }) {
   return (
-    <div className="fullscreen-controls" aria-label="Fullscreen game controls">
-      <div className="fullscreen-actions">
-        <button
-          type="button"
-          onClick={onToggle}
-          disabled={game.status === "lost" || game.status === "won"}
-        >
-          {game.status === "running" ? (
-            <Pause aria-hidden="true" />
-          ) : (
-            <Play aria-hidden="true" />
-          )}
-          {game.status === "running" ? "Pause" : "Play"}
-        </button>
-        <button type="button" onClick={onRestart}>
-          <RotateCcw aria-hidden="true" />
-          Restart
-        </button>
-        <button type="button" onClick={onExit}>
-          <X aria-hidden="true" />
-          Exit
-        </button>
-      </div>
-      <div
-        className="fullscreen-dpad"
-        role="group"
-        aria-label="Fullscreen direction controls"
+    <div
+      className="fullscreen-dpad"
+      role="group"
+      aria-label="Fullscreen direction controls"
+    >
+      <button type="button" aria-label="Move up" onClick={() => onTurn("up")}>
+        <ArrowUp aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        aria-label="Move left"
+        onClick={() => onTurn("left")}
       >
-        <button type="button" aria-label="Move up" onClick={() => onTurn("up")}>
-          <ArrowUp aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          aria-label="Move left"
-          onClick={() => onTurn("left")}
-        >
-          <ArrowLeft aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          aria-label="Move down"
-          onClick={() => onTurn("down")}
-        >
-          <ArrowDown aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          aria-label="Move right"
-          onClick={() => onTurn("right")}
-        >
-          <ArrowRight aria-hidden="true" />
-        </button>
-      </div>
+        <ArrowLeft aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        aria-label="Move down"
+        onClick={() => onTurn("down")}
+      >
+        <ArrowDown aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        aria-label="Move right"
+        onClick={() => onTurn("right")}
+      >
+        <ArrowRight aria-hidden="true" />
+      </button>
     </div>
   );
+}
+
+function gameActionLabel(game: GameState): string {
+  if (game.status === "running") return "Pause";
+  if (game.status === "paused") return "Resume";
+  if (game.status === "lost" || game.status === "won") return "Play again";
+  return "Play";
 }

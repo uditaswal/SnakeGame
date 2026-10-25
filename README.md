@@ -2,6 +2,8 @@
 
 A browser Snake game with guest play, keyboard and touch controls, and an optional public leaderboard. Accounts are only needed to publish scores.
 
+**Live site:** [snake-game-two-flame.vercel.app](https://snake-game-two-flame.vercel.app/)
+
 ![Snake home screen](docs/images/home.png)
 
 <details>
@@ -65,11 +67,13 @@ To block secrets before local commits, install [pre-commit](https://pre-commit.c
 
 Import the repository as a Vite project, use pnpm, and deploy the branch you intend to publish. The production deployment needs `DATABASE_URL` and `RATE_LIMIT_SECRET` set as **Production** environment variables in Vercel. Apply `pnpm db:migrate` to that database before publishing. `APP_ORIGIN` is optional on Vercel: the function derives an origin from Vercel's deployment URL; for a custom domain, set `APP_ORIGIN` to its exact `https://` origin. Set public `VITE_SITE_ORIGIN` to the same canonical origin so metadata and sitemap URLs agree. Do not put secrets in Git or the browser bundle.
 
+The canonical production origin is `https://snake-game-two-flame.vercel.app`. Use that value for `APP_ORIGIN` and `VITE_SITE_ORIGIN` in the Production environment when explicit values are configured.
+
 Preview and Production environments are separate. A Preview deployment needs its own database URL and rate-limit secret to test accounts and scores; without them, the frontend still builds but those API routes cannot work. Prefer a separate Neon branch for Preview rather than sharing production data. Deploying the `dev` branch normally creates a Preview deployment, not a Production deployment.
 
 ## Security and privacy
 
-New passwords must be 15 to 128 characters and are Argon2id-hashed. Existing shorter passwords can still be used to sign in, change the password, or delete the account. Session tokens are stored as hashes in Postgres and sent to browsers in HttpOnly, SameSite cookies. State-changing API requests check their origin; account and score routes use validation and rate limits. SQL uses parameterized queries. The privacy notice describes stored data, public usernames and scores, providers, retention, deletion, and contact details. No email address is collected, so forgotten passwords cannot be reset by email.
+New passwords must be 15 to 128 characters and are Argon2id-hashed. Existing shorter passwords can still be used to sign in, change the password, or delete the account. Session tokens are stored as hashes in Postgres and sent to browsers in HttpOnly, SameSite cookies. State-changing API requests check their origin; account and score routes use validation and rate limits. SQL uses parameterized queries. The privacy notice gives a plain-language summary of account and score data, essential storage, service providers, deletion, and contact details. No email address is collected, so forgotten passwords cannot be reset by email.
 
 `.env.local`, Vercel metadata, build outputs, caches, and local issue notes are ignored by Git and Docker. The local smoke test requires a disposable test account; it deletes it after a successful run.
 

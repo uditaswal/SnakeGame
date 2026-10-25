@@ -3,4 +3,4 @@ Allow: /
 Disallow: /account
 Disallow: /api/
 
-Sitemap: https://snake-game-udit-aswals-projects.vercel.app/sitemap.xml
+Sitemap: https://snake-game-two-flame.vercel.app/sitemap.xml

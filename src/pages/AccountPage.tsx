@@ -1,17 +1,16 @@
-import { useEffect, useId, useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import {
   changePassword,
   deleteAccount,
-  getSession,
   login,
   logout,
   register,
-  type PublicUser,
 } from "../lib/auth";
 import { ClientApiError } from "../lib/api";
 import { readPendingRun, submitPendingRun } from "../lib/run-api";
 import { usePageMeta } from "../lib/page-meta";
+import { useSession } from "../lib/session-context";
 
 type Mode = "login" | "register";
 
@@ -21,18 +20,12 @@ export function AccountPage() {
     "Create an account to save verified Snake scores.",
     true,
   );
-  const [user, setUser] = useState<PublicUser | null | undefined>(undefined);
+  const { loading, setUser, user } = useSession();
   const [mode, setMode] = useState<Mode>("login");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [hasPendingRun] = useState(() => readPendingRun() !== null);
-
-  useEffect(() => {
-    getSession()
-      .then(({ user: sessionUser }) => setUser(sessionUser))
-      .catch(() => setUser(null));
-  }, []);
 
   async function handleAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -117,7 +110,7 @@ export function AccountPage() {
     }
   }
 
-  if (user === undefined)
+  if (loading)
     return (
       <section className="account-page">
         <p className="account-loading">Checking your session…</p>
@@ -232,8 +225,8 @@ export function AccountPage() {
       <div className="account-intro">
         <h1>Hey, {user.username}.</h1>
         <p>
-          Your username and published scores are public. Your password hash and
-          session records stay private.
+          Your username and saved best score are public. You can manage your
+          account here.
         </p>
         <button
           className="text-action"

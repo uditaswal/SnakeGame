@@ -31,8 +31,8 @@ export function HomePage() {
             <dd>Arrow keys, WASD or swipe</dd>
           </div>
           <div>
-            <dt>Pause</dt>
-            <dd>Space bar</dd>
+            <dt>Game</dt>
+            <dd>Space to start, pause or restart</dd>
           </div>
         </dl>
       </div>

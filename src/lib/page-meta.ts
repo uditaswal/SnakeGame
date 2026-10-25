@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 
-const FALLBACK_SITE_ORIGIN = 'https://snake-game-udit-aswals-projects.vercel.app'
+const FALLBACK_SITE_ORIGIN = 'https://snake-game-two-flame.vercel.app'
 const configuredOrigin = import.meta.env.VITE_SITE_ORIGIN || FALLBACK_SITE_ORIGIN
 const siteOrigin = configuredOrigin.replace(/\/$/, '')
 const socialImage = `${siteOrigin}/img/home.png`
