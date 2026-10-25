@@ -1,0 +1,16 @@
+.git
+.vercel
+.neon
+.agents
+node_modules
+dist
+coverage
+.cache
+.turbo
+.env
+.env.*
+!.env.example
+*.log
+plan.md
+issues.md
+skills-lock.json

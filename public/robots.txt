@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /account
+Disallow: /api/
+
+Sitemap: https://snake-game-udit-aswals-projects.vercel.app/sitemap.xml

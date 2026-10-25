@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+.cache/
+.turbo/
+.vercel/
+.neon
+.agents/
+.env
+.env.*
+!.env.example
+*.log
+pnpm-debug.log*
+plan.md
+issues.md
+skills-lock.json
