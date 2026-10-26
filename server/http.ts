@@ -8,10 +8,11 @@ export type ApiRequest = {
   headers: Record<string, HeaderValue>
   body?: unknown
   cookies: Record<string, string>
+  query?: Record<string, string | string[] | undefined>
 }
 
 export type ApiResponse = {
-  setHeader(name: string, value: string): unknown
+  setHeader(name: string, value: string | string[]): unknown
   status(code: number): ApiResponse
   json(body: unknown): void
   end(): void
@@ -76,6 +77,13 @@ export function getJsonBody(request: ApiRequest): Record<string, unknown> {
     throw new ApiError(400, 'INVALID_BODY', 'Send a valid JSON object.')
   }
   return request.body as Record<string, unknown>
+}
+
+export function getQueryValue(request: ApiRequest, name: string, maxLength = 2048): string {
+  const value = request.query?.[name]
+  const scalar = Array.isArray(value) ? value[0] : value
+  if (typeof scalar !== 'string' || scalar.length === 0 || scalar.length > maxLength) return ''
+  return scalar
 }
 
 export function getClientKey(request: ApiRequest, purpose: string): string {

@@ -4,13 +4,17 @@ import { SessionContext } from "./session-context";
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PublicUser | null>(null);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
     getSession()
-      .then(({ user: sessionUser }) => {
-        if (active) setUser(sessionUser);
+      .then(({ user: sessionUser, providers }) => {
+        if (active) {
+          setUser(sessionUser);
+          setGoogleEnabled(providers?.google === true);
+        }
       })
       .catch(() => {
         if (active) setUser(null);
@@ -24,8 +28,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, loading, setUser }),
-    [loading, user],
+    () => ({ user, googleEnabled, loading, setUser }),
+    [googleEnabled, loading, user],
   );
 
   return (

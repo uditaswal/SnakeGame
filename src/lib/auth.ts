@@ -3,10 +3,11 @@ import { apiRequest } from './api'
 export type PublicUser = {
   id: string
   username: string
+  authProvider: 'password' | 'google'
   createdAt: string
 }
 
-export function getSession(): Promise<{ user: PublicUser | null }> {
+export function getSession(): Promise<{ user: PublicUser | null; providers: { google: boolean } }> {
   return apiRequest('/api/auth/session')
 }
 
@@ -39,6 +40,13 @@ export function deleteAccount(password: string): Promise<void> {
   return apiRequest('/api/auth/account', {
     method: 'DELETE',
     body: JSON.stringify({ password }),
+  })
+}
+
+export function beginGoogleAccountDeletion(confirmation: string): Promise<{ authorizationUrl: string }> {
+  return apiRequest('/api/auth/google/delete', {
+    method: 'POST',
+    body: JSON.stringify({ confirmation }),
   })
 }
 

@@ -78,4 +78,50 @@ describe('app routing', () => {
     expect(await screen.findByRole('link', { name: 'Account: SnakeFan' })).toHaveTextContent('SnakeFan')
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/login', expect.objectContaining({ method: 'POST' }))
   })
+
+  it('offers Google sign-in only when the server has it configured', async () => {
+    vi.stubGlobal('scrollTo', vi.fn())
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ user: null, providers: { google: true } }),
+    })))
+
+    render(
+      <MemoryRouter initialEntries={['/account']}>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('link', { name: 'Continue with Google' })).toHaveAttribute(
+      'href',
+      '/api/auth/google/start',
+    )
+  })
+
+  it('uses Google reauthentication for Google-account deletion', async () => {
+    vi.stubGlobal('scrollTo', vi.fn())
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        user: {
+          id: '3d595f3e-9a3d-4f52-9c49-7774bf8cda43',
+          username: 'Player_0123456789ab',
+          authProvider: 'google',
+          createdAt: new Date().toISOString(),
+        },
+        providers: { google: true },
+      }),
+    })))
+
+    render(
+      <MemoryRouter initialEntries={['/account']}>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('button', { name: 'Verify with Google and delete' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Change password' })).not.toBeInTheDocument()
+  })
 })

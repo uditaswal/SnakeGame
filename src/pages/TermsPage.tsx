@@ -7,7 +7,7 @@ export function TermsPage() {
   return (
     <article className="legal-page">
       <h1>Terms of use</h1>
-      <p>Last updated: October 25, 2026.</p>
+      <p>Last updated: October 26, 2026.</p>
 
       <h2>Using the game</h2>
       <p>You may play without an account. An account is optional and lets you publish verified scores under a public username. You are responsible for activity in your signed-in session.</p>
@@ -22,7 +22,7 @@ export function TermsPage() {
       <p>The game is provided as available. Features may change, pause, or end, and uninterrupted access is not guaranteed. Keep your own copy of anything you need; the service is not a backup system.</p>
 
       <h2>Accounts</h2>
-      <p>You may delete your account from Account settings. Accounts may be limited or removed when needed to protect the game, its users, or the service from abuse.</p>
+      <p>You may delete your account from Account settings. Google sign-in is subject to Google’s own account terms. Accounts may be limited or removed when needed to protect the game, its users, or the service from abuse.</p>
 
       <h2>Privacy and contact</h2>
       <p>The <Link to="/privacy">privacy notice</Link> explains what data is handled and how to request help. Questions about these terms can be sent through <a href="https://github.com/uditaswal" target="_blank" rel="noreferrer">the project owner’s GitHub profile</a>.</p>

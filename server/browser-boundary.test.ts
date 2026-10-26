@@ -16,7 +16,9 @@ describe('browser secret boundary', () => {
   it('keeps the database connection string out of browser source', () => {
     for (const path of sourceFiles(browserSourceRoot)) {
       const source = readFileSync(path, 'utf8')
-      expect(source, `${path} must not reference the server database URL`).not.toMatch(/DATABASE_URL|VITE_[A-Z0-9_]*DATABASE/)
+      expect(source, `${path} must not reference server-only credentials`).not.toMatch(
+        /DATABASE_URL|GOOGLE_CLIENT_SECRET|OAUTH_STATE_SECRET|VITE_[A-Z0-9_]*(?:DATABASE|SECRET)/,
+      )
     }
   })
 })

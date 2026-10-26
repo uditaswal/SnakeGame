@@ -4,7 +4,9 @@ export type UserRecord = {
   id: string
   username: string
   usernameKey: string
-  passwordHash: string
+  passwordHash: string | null
+  authProvider: 'password' | 'google'
+  providerSubject?: string | null
   createdAt: DatabaseTimestamp
   updatedAt: DatabaseTimestamp
 }

@@ -2,10 +2,18 @@ type ServerEnv = Readonly<{
   databaseUrl: string
   appOrigin: string
   rateLimitSecret: string
-  production: boolean
+  secureCookies: boolean
+}>
+
+export type GoogleOAuthEnv = Readonly<{
+  appOrigin: string
+  clientId: string
+  clientSecret: string
+  stateSecret: string
 }>
 
 let cached: ServerEnv | undefined
+let cachedGoogleOAuth: GoogleOAuthEnv | undefined
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim()
@@ -39,7 +47,33 @@ export function getEnv(): ServerEnv {
     databaseUrl,
     appOrigin,
     rateLimitSecret,
-    production: process.env.VERCEL_ENV === 'production',
+    secureCookies: parsedOrigin.protocol === 'https:',
   }
   return cached
+}
+
+export function isGoogleOAuthConfigured(): boolean {
+  const clientId = process.env.GOOGLE_CLIENT_ID?.trim()
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim()
+  const stateSecret = process.env.OAUTH_STATE_SECRET?.trim()
+  return Boolean(clientId && clientSecret && stateSecret && stateSecret.length >= 32)
+}
+
+export function getGoogleOAuthEnv(): GoogleOAuthEnv {
+  if (cachedGoogleOAuth) return cachedGoogleOAuth
+
+  const clientId = requireEnv('GOOGLE_CLIENT_ID')
+  const clientSecret = requireEnv('GOOGLE_CLIENT_SECRET')
+  const stateSecret = requireEnv('OAUTH_STATE_SECRET')
+  if (stateSecret.length < 32) {
+    throw new Error('OAUTH_STATE_SECRET must contain at least 32 characters.')
+  }
+
+  cachedGoogleOAuth = {
+    appOrigin: getEnv().appOrigin,
+    clientId,
+    clientSecret,
+    stateSecret,
+  }
+  return cachedGoogleOAuth
 }

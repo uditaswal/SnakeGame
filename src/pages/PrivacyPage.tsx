@@ -8,7 +8,7 @@ export function PrivacyPage() {
       <h1>Privacy notice</h1>
       <p>Last updated: October 26, 2026.</p>
       <h2>Account and score data</h2>
-      <p>If you create an account, Snake keeps the information needed to run your account and save verified scores. Your username and best score may appear on the public leaderboard. The game does not collect your email address.</p>
+      <p>If you create an account, Snake keeps the information needed to run your account and save verified scores. Your username and best score may appear on the public leaderboard. If you use Google sign-in, Snake keeps the account link needed to recognize you but does not keep your Google email or access to Google services.</p>
       <h2>Cookies and local data</h2>
       <p>Snake uses an essential cookie to keep you signed in. Your browser may also save your personal best and unfinished score submission. The site does not use advertising or analytics cookies.</p>
       <h2>Service providers</h2>

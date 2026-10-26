@@ -11,9 +11,28 @@ await sql.transaction([
       id uuid PRIMARY KEY,
       username varchar(20) NOT NULL,
       username_key varchar(20) NOT NULL UNIQUE,
-      password_hash text NOT NULL,
+      password_hash text,
+      auth_provider varchar(16) NOT NULL DEFAULT 'password',
+      provider_subject varchar(255),
       created_at timestamptz NOT NULL,
       updated_at timestamptz NOT NULL
+    )
+  `,
+  sql`ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL`,
+  sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider varchar(16) NOT NULL DEFAULT 'password'`,
+  sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS provider_subject varchar(255)`,
+  sql`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_auth_provider_check`,
+  sql`
+    ALTER TABLE users ADD CONSTRAINT users_auth_provider_check
+    CHECK (auth_provider IN ('password', 'google'))
+  `,
+  sql`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_auth_data_check`,
+  sql`
+    ALTER TABLE users ADD CONSTRAINT users_auth_data_check
+    CHECK (
+      (auth_provider = 'password' AND password_hash IS NOT NULL AND provider_subject IS NULL)
+      OR
+      (auth_provider = 'google' AND password_hash IS NULL AND provider_subject IS NOT NULL)
     )
   `,
   sql`
@@ -66,6 +85,11 @@ await sql.transaction([
     )
   `,
   sql`CREATE INDEX IF NOT EXISTS sessions_by_user ON sessions (user_id)`,
+  sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS users_auth_identity
+    ON users (auth_provider, provider_subject)
+    WHERE provider_subject IS NOT NULL
+  `,
   sql`CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions (expires_at)`,
   sql`CREATE INDEX IF NOT EXISTS leaderboard_rank ON scores (score DESC, achieved_at ASC)`,
   sql`CREATE INDEX IF NOT EXISTS scores_by_user ON scores (user_id, score DESC)`,

@@ -9,6 +9,9 @@ export default withApi(async (request, response) => {
   await enforceRateLimit({ key: getClientKey(request, 'password'), limit: 5, windowMs: 15 * 60 * 1000 })
 
   const user = await requireSessionUser(request)
+  if (user.authProvider !== 'password' || !user.passwordHash) {
+    throw new ApiError(400, 'PASSWORD_UNAVAILABLE', 'This account signs in with Google.')
+  }
   const body = getJsonBody(request)
   const currentPassword = parseExistingPassword(body.currentPassword)
   const newPassword = parseNewPassword(body.newPassword)

@@ -1,6 +1,7 @@
-import { useId, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
+  beginGoogleAccountDeletion,
   changePassword,
   deleteAccount,
   login,
@@ -20,12 +21,52 @@ export function AccountPage() {
     "Create an account to save verified Snake scores.",
     true,
   );
-  const { loading, setUser, user } = useSession();
+  const { googleEnabled, loading, setUser, user } = useSession();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [mode, setMode] = useState<Mode>("login");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [hasPendingRun] = useState(() => readPendingRun() !== null);
+  const oauthResultHandled = useRef(false);
+
+  useEffect(() => {
+    const result = searchParams.get("auth");
+    if (!result || oauthResultHandled.current || (result === "google" && loading)) return;
+    oauthResultHandled.current = true;
+    setSearchParams({}, { replace: true });
+
+    if (result === "google_error") {
+      setError("Google sign-in was cancelled or could not be verified. Try again.");
+      return;
+    }
+    if (result === "deleted") {
+      setUser(null);
+      setNotice("Your account and published scores were deleted.");
+      return;
+    }
+    if (result !== "google" || !user) {
+      setError("Google sign-in could not be completed. Try again.");
+      return;
+    }
+
+    let active = true;
+    setNotice("Signed in with Google.");
+    void submitPendingRun()
+      .then((savedScore) => {
+        if (active && savedScore !== null) {
+          setNotice(`Signed in with Google. Score ${savedScore} is now on your account.`);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setNotice("Signed in with Google. Your saved score is still waiting; return to the game to retry it.");
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [loading, searchParams, setSearchParams, setUser, user]);
 
   async function handleAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -110,6 +151,24 @@ export function AccountPage() {
     }
   }
 
+  async function handleGoogleDelete(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const confirmation = String(new FormData(event.currentTarget).get("confirmation") || "");
+    if (confirmation !== user?.username) {
+      setError("Type your exact username to confirm deletion.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const { authorizationUrl } = await beginGoogleAccountDeletion(confirmation);
+      window.location.assign(authorizationUrl);
+    } catch (caught) {
+      setError(messageFrom(caught));
+      setBusy(false);
+    }
+  }
+
   if (loading)
     return (
       <section className="account-page">
@@ -129,6 +188,18 @@ export function AccountPage() {
           </p>
         </div>
         <div className="auth-panel">
+          {googleEnabled ? (
+            <div className="oauth-choice">
+              <a className="google-action" href="/api/auth/google/start">
+                Continue with Google
+              </a>
+              <p>
+                We assign a public game username. Snake does not store your Google email or access to Google services.
+                Continuing means you agree to the <Link to="/terms">terms</Link> and have read the <Link to="/privacy">privacy notice</Link>.
+              </p>
+              <span>or use a username and password</span>
+            </div>
+          ) : null}
           <div className="auth-switch" aria-label="Account action">
             <button
               className={mode === "login" ? "active" : ""}
@@ -151,6 +222,16 @@ export function AccountPage() {
               Create account
             </button>
           </div>
+          {error ? (
+            <p className="form-message form-message--error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          {notice ? (
+            <p className="form-message form-message--success" role="status">
+              {notice}
+            </p>
+          ) : null}
           <form key={mode} onSubmit={handleAuth}>
             <label>
               Username
@@ -197,16 +278,6 @@ export function AccountPage() {
                 </p>
               </>
             ) : null}
-            {error ? (
-              <p className="form-message form-message--error" role="alert">
-                {error}
-              </p>
-            ) : null}
-            {notice ? (
-              <p className="form-message form-message--success" role="status">
-                {notice}
-              </p>
-            ) : null}
             <button className="primary-action" type="submit" disabled={busy}>
               {busy
                 ? "Working…"
@@ -225,8 +296,9 @@ export function AccountPage() {
       <div className="account-intro">
         <h1>Hey, {user.username}.</h1>
         <p>
-          Your username and saved best score are public. You can manage your
-          account here.
+          Your username and saved best score are public. {user.authProvider === "google"
+            ? "You sign in with Google."
+            : "You sign in with your username and password."}
         </p>
         <button
           className="text-action"
@@ -255,41 +327,51 @@ export function AccountPage() {
             {error}
           </p>
         ) : null}
-        <form onSubmit={handlePassword}>
-          <h2>Change password</h2>
-          <PasswordInput
-            name="currentPassword"
-            label="Current password"
-            autoComplete="current-password"
-            required
-          />
-          <PasswordInput
-            name="newPassword"
-            label="New password"
-            autoComplete="new-password"
-            minLength={15}
-            required
-          />
-          <PasswordInput
-            name="confirmNewPassword"
-            label="Confirm new password"
-            autoComplete="new-password"
-            minLength={15}
-            required
-          />
-          <button type="submit" disabled={busy}>
-            Update password
-          </button>
-        </form>
-        <form className="danger-zone" onSubmit={handleDelete}>
+        {user.authProvider === "password" ? (
+          <form onSubmit={handlePassword}>
+            <h2>Change password</h2>
+            <PasswordInput
+              name="currentPassword"
+              label="Current password"
+              autoComplete="current-password"
+              required
+            />
+            <PasswordInput
+              name="newPassword"
+              label="New password"
+              autoComplete="new-password"
+              minLength={15}
+              required
+            />
+            <PasswordInput
+              name="confirmNewPassword"
+              label="Confirm new password"
+              autoComplete="new-password"
+              minLength={15}
+              required
+            />
+            <button type="submit" disabled={busy}>
+              Update password
+            </button>
+          </form>
+        ) : null}
+        <form
+          className="danger-zone"
+          onSubmit={user.authProvider === "google" ? handleGoogleDelete : handleDelete}
+        >
           <h2>Delete account</h2>
-          <p>This permanently removes the account and all published scores.</p>
-          <PasswordInput
-            name="password"
-            label="Password"
-            autoComplete="current-password"
-            required
-          />
+          <p>
+            This permanently removes the account and all published scores.
+            {user.authProvider === "google" ? " Google will ask you to verify first." : ""}
+          </p>
+          {user.authProvider === "password" ? (
+            <PasswordInput
+              name="password"
+              label="Password"
+              autoComplete="current-password"
+              required
+            />
+          ) : null}
           <label>
             Type “{user.username}”
             <input
@@ -300,7 +382,7 @@ export function AccountPage() {
             />
           </label>
           <button type="submit" disabled={busy}>
-            Delete permanently
+            {user.authProvider === "google" ? "Verify with Google and delete" : "Delete permanently"}
           </button>
         </form>
       </div>

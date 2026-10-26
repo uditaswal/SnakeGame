@@ -17,13 +17,21 @@ export default withApi(async (request, response) => {
   const password = parseNewPassword(body.password)
   const passwordHash = await hashPassword(password)
   const now = new Date()
-  const user: UserRecord = { id: randomUUID(), username, usernameKey, passwordHash, createdAt: now, updatedAt: now }
+  const user: UserRecord = {
+    id: randomUUID(),
+    username,
+    usernameKey,
+    passwordHash,
+    authProvider: 'password',
+    createdAt: now,
+    updatedAt: now,
+  }
 
   try {
     const sql = getSql()
     await sql`
-      INSERT INTO users (id, username, username_key, password_hash, created_at, updated_at)
-      VALUES (${user.id}, ${user.username}, ${user.usernameKey}, ${user.passwordHash}, ${now}, ${now})
+      INSERT INTO users (id, username, username_key, password_hash, auth_provider, created_at, updated_at)
+      VALUES (${user.id}, ${user.username}, ${user.usernameKey}, ${user.passwordHash}, ${user.authProvider}, ${now}, ${now})
     `
   } catch (error) {
     if (isDuplicateKey(error)) throw new ApiError(409, 'USERNAME_TAKEN', 'That username is unavailable.')

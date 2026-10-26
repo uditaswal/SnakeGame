@@ -21,6 +21,7 @@ export default withApi(async (request, response) => {
       username,
       username_key AS "usernameKey",
       password_hash AS "passwordHash",
+      auth_provider AS "authProvider",
       created_at AS "createdAt",
       updated_at AS "updatedAt"
     FROM users
@@ -30,7 +31,7 @@ export default withApi(async (request, response) => {
   const user = rows[0] ?? null
 
   let valid = false
-  if (user) valid = await verifyPassword(user.passwordHash, password)
+  if (user?.passwordHash) valid = await verifyPassword(user.passwordHash, password)
   else await hashPassword(password || 'invalid-login-padding')
   if (!user || !valid) throw new ApiError(401, 'INVALID_CREDENTIALS', 'Username or password is incorrect.')
 

@@ -8,6 +8,7 @@ import type { PublicUser } from "./auth";
 
 export type SessionContextValue = {
   user: PublicUser | null;
+  googleEnabled: boolean;
   loading: boolean;
   setUser: Dispatch<SetStateAction<PublicUser | null>>;
 };

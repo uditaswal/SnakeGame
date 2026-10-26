@@ -13,10 +13,10 @@ function tokenHash(token: string): string {
 }
 
 function cookieName(): string {
-  return getEnv().production ? PRODUCTION_COOKIE : DEVELOPMENT_COOKIE
+  return getEnv().secureCookies ? PRODUCTION_COOKIE : DEVELOPMENT_COOKIE
 }
 
-export async function createSession(userId: string, response: ApiResponse): Promise<void> {
+export async function createSession(userId: string, response: ApiResponse, additionalCookies: string[] = []): Promise<void> {
   const sql = getSql()
   const token = randomBytes(32).toString('base64url')
   const now = new Date()
@@ -30,16 +30,16 @@ export async function createSession(userId: string, response: ApiResponse): Prom
     `,
   ])
 
-  response.setHeader('Set-Cookie', serializeCookie(token, expiresAt))
+  response.setHeader('Set-Cookie', [...additionalCookies, serializeCookie(token, expiresAt)])
 }
 
-export async function deleteSession(request: ApiRequest, response: ApiResponse): Promise<void> {
+export async function deleteSession(request: ApiRequest, response: ApiResponse, additionalCookies: string[] = []): Promise<void> {
   const token = readSessionToken(request)
   if (token) {
     const sql = getSql()
     await sql`DELETE FROM sessions WHERE token_hash = ${tokenHash(token)}`
   }
-  response.setHeader('Set-Cookie', clearCookie())
+  response.setHeader('Set-Cookie', [...additionalCookies, clearSessionCookie()])
 }
 
 export async function getSessionUser(request: ApiRequest): Promise<UserRecord | null> {
@@ -53,6 +53,7 @@ export async function getSessionUser(request: ApiRequest): Promise<UserRecord | 
       users.username,
       users.username_key AS "usernameKey",
       users.password_hash AS "passwordHash",
+      users.auth_provider AS "authProvider",
       users.created_at AS "createdAt",
       users.updated_at AS "updatedAt"
     FROM sessions
@@ -92,8 +93,8 @@ export async function replaceUserSessions(userId: string, response: ApiResponse,
   response.setHeader('Set-Cookie', serializeCookie(token, expiresAt))
 }
 
-export function publicUser(user: UserRecord): { id: string; username: string; createdAt: string } {
-  return { id: user.id, username: user.username, createdAt: timestampToIso(user.createdAt) }
+export function publicUser(user: UserRecord): { id: string; username: string; authProvider: 'password' | 'google'; createdAt: string } {
+  return { id: user.id, username: user.username, authProvider: user.authProvider, createdAt: timestampToIso(user.createdAt) }
 }
 
 function readSessionToken(request: ApiRequest): string | null {
@@ -101,11 +102,11 @@ function readSessionToken(request: ApiRequest): string | null {
 }
 
 function serializeCookie(token: string, expiresAt: Date): string {
-  const secure = getEnv().production ? '; Secure' : ''
+  const secure = getEnv().secureCookies ? '; Secure' : ''
   return `${cookieName()}=${token}; Path=/; HttpOnly; SameSite=Strict${secure}; Expires=${expiresAt.toUTCString()}`
 }
 
-function clearCookie(): string {
-  const secure = getEnv().production ? '; Secure' : ''
+export function clearSessionCookie(): string {
+  const secure = getEnv().secureCookies ? '; Secure' : ''
   return `${cookieName()}=; Path=/; HttpOnly; SameSite=Strict${secure}; Max-Age=0`
 }

@@ -10,6 +10,8 @@ coverage
 .env
 .env.*
 !.env.example
+client_secret*.json
+oauth_client*.json
 *.log
 plan.md
 issues.md
