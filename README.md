@@ -85,5 +85,3 @@ Preview and Production environments are separate. A Preview deployment needs its
 New passwords must be 15 to 128 characters and are Argon2id-hashed. Existing shorter passwords can still be used to sign in, change the password, or delete the account. Google sign-in uses authorization code flow with PKCE, signed short-lived state, a one-time nonce, and server-side ID-token verification. Session tokens are stored as hashes in Postgres and sent to browsers in HttpOnly, SameSite cookies. State-changing API requests check their origin; account and score routes use validation and rate limits. SQL uses parameterized queries. The privacy notice gives a plain-language summary of account and score data, essential storage, service providers, deletion, and contact details. No email address is stored, so forgotten passwords cannot be reset by email.
 
 `.env.local`, Vercel metadata, build outputs, caches, and local issue notes are ignored by Git and Docker. The local smoke test requires a disposable test account; it deletes it after a successful run.
-
-Search-engine and uptime services still need to be connected by the project owner.
