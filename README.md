@@ -86,4 +86,4 @@ New passwords must be 15 to 128 characters and are Argon2id-hashed. Existing sho
 
 `.env.local`, Vercel metadata, build outputs, caches, and local issue notes are ignored by Git and Docker. The local smoke test requires a disposable test account; it deletes it after a successful run.
 
-The operational release, rollback, restore-test, and first-72-hours checks are in [`docs/launch-runbook.md`](docs/launch-runbook.md). Search-engine and uptime services still need to be connected by the project owner.
+Search-engine and uptime services still need to be connected by the project owner.

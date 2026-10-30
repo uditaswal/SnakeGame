@@ -16,3 +16,4 @@ oauth_client*.json
 plan.md
 issues.md
 skills-lock.json
+/docs/doc-internal/
